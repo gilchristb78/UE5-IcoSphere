@@ -32,4 +32,7 @@ private:
 
 	TObjectPtr<UProceduralMeshComponent> Mesh;
 
+	void CreateOctahedron(TArray<FVector>& vertices, TArray<int>& triangles, int resolution);
+	void CreateVertexLine(FVector from, FVector to, int steps, TArray<FVector>& vertices, int& v);
+	void CreateLowerStrip(int steps, int vTop, int vBottom, TArray<int>& triangles, int& t);
 };
