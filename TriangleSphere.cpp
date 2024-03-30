@@ -52,24 +52,25 @@ void ATriangleSphere::BeginPlay()
 	//	//Normals.Add(FVector::UpVector);
 	//}
 
-	int subdivisions = 5;
+	int subdivisions = 7;
 	int resolution = 1 << subdivisions;
 	TArray<FVector> Vertices;
 	//Vertices.SetNum((resolution + 1) * (resolution + 1) * 4 - (resolution * 2 - 1) * 3);
 	TArray<int> Triangles;
 	//Triangles.SetNum((1 << (subdivisions * 2 + 3)) * 3);
+	TArray<FVector> Normals;
 	CreateOctahedron(Vertices, Triangles, resolution);
 
 	for (int i = 0; i < Vertices.Num(); i++)
 	{
-		Vertices[i] = Vertices[i].GetSafeNormal() * 8000;
-		//	Normals.Add(Vertices[i].GetSafeNormal());
+		Vertices[i] = Vertices[i].GetSafeNormal() * 80000;
+		Normals.Add(Vertices[i].GetSafeNormal());
 		//	//Normals.Add(FVector::UpVector);
 	}
 
 	
 	Mesh->SetMaterial(0, Material);
-	Mesh->CreateMeshSection(0, Vertices, Triangles, TArray<FVector>() , TArray<FVector2D>(), TArray<FColor>(), TArray<FProcMeshTangent>(), true);
+	Mesh->CreateMeshSection(0, Vertices, Triangles, Normals , TArray<FVector2D>(), TArray<FColor>(), TArray<FProcMeshTangent>(), true);
 
 	
 }
@@ -83,38 +84,53 @@ void ATriangleSphere::Tick(float DeltaTime)
 
 void ATriangleSphere::CreateOctahedron(TArray<FVector>& vertices, TArray<int>& triangles, int resolution)
 {
-	int v = 0, vBottom = 0, t = 0;
+	int vBottom = 0;
 
-	for (int i = 0; i < 4; i++)
+	/*for (int i = 0; i < 4; i++)
 	{
 		vertices.Add(FVector::DownVector);
-		v++;
-	}
+	}*/
 
-	for (int i = 0; i <= resolution; i++)
+	//vertices.Add(FVector::DownVector);
+
+	TArray<FVector> direction1 = { FVector::ForwardVector, FVector::LeftVector, FVector::BackwardVector, FVector::RightVector };
+	TArray<FVector> direction2 = { FVector::LeftVector, FVector::BackwardVector, FVector::RightVector, FVector::ForwardVector };
+	TArray<FVector> direction3 = { FVector::DownVector, FVector::UpVector};
+
+	for (int ud = 0; ud < direction3.Num(); ud++)
 	{
-		float progress = (float)i / resolution;
-		FVector from, to;
-		from = FMath::Lerp(FVector::DownVector, FVector::ForwardVector, progress);
-		vertices.Add(from);
-		v++;
-		to = FMath::Lerp(FVector::DownVector, FVector::LeftVector, progress);
-		CreateLowerStrip(i, v, vBottom, triangles, t);
-		CreateVertexLine(from, to, i, vertices, v);
-		vBottom = v - 1 - i;
+		for (int d = 0; d < direction1.Num(); d++)
+		{
+			vertices.Add(direction3[ud]);
+			vBottom = vertices.Num() - 1;
+			for (int i = 0; i <= resolution; i++)
+			{
+				float progress = (float)i / resolution;
+				FVector from, to;
+				from = FMath::Lerp(direction3[ud], direction1[d], progress);
+				vertices.Add(from);
+				to = FMath::Lerp(direction3[ud], direction2[d], progress);
+				CreateLowerStrip(i, vertices.Num(), vBottom, triangles);
+				CreateUpperStrip(i, vertices.Num(), vBottom, triangles);
+				CreateVertexLine(from, to, i, vertices);
+				vBottom = vertices.Num() - 1 - i;
+			}
+		}
 	}
+	
+
+	
 }
 
-void ATriangleSphere::CreateVertexLine(FVector from, FVector to, int steps, TArray<FVector>& vertices, int& v)
+void ATriangleSphere::CreateVertexLine(FVector from, FVector to, int steps, TArray<FVector>& vertices)
 {
 	for (int i = 1; i <= steps; i++)
 	{
 		vertices.Add(FMath::LerpStable(from, to, (float)i / steps));
-		v++;
 	}
 }
 
-void ATriangleSphere::CreateLowerStrip(int steps, int vTop, int vBottom, TArray<int>& triangles, int& t)
+void ATriangleSphere::CreateLowerStrip(int steps, int vTop, int vBottom, TArray<int>& triangles)
 {
 	for (int i = 1; i < steps; i++)
 	{
@@ -126,12 +142,29 @@ void ATriangleSphere::CreateLowerStrip(int steps, int vTop, int vBottom, TArray<
 		triangles.Add(vBottom + 1);
 		triangles.Add(vTop++);
 		triangles.Add(vBottom++);
-		t += 6;
 	}
 
 	triangles.Add(vTop);
 	triangles.Add(vTop - 1);
 	triangles.Add(vBottom);
-	t += 3;
+}
+
+void ATriangleSphere::CreateUpperStrip(int steps, int vTop, int vBottom, TArray<int>& triangles)
+{
+	for (int i = 1; i < steps; i++)
+	{
+
+		triangles.Add(vBottom);
+		triangles.Add(vTop - 1);
+		triangles.Add(vTop);
+
+		triangles.Add(vBottom++);
+		triangles.Add(vTop++);
+		triangles.Add(vBottom);
+	}
+
+	triangles.Add(vBottom);
+	triangles.Add(vTop - 1);
+	triangles.Add(vTop);
 }
 
