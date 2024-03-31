@@ -20,6 +20,9 @@ public:
 	UPROPERTY(EditInstanceOnly, Category = "Chunk World")
 	TObjectPtr<UMaterialInterface> Material;
 
+	UPROPERTY(EditInstanceOnly, Category = "Chunk World")
+	int CraterNum;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;

@@ -52,7 +52,7 @@ void ATriangleSphere::BeginPlay()
 	//	//Normals.Add(FVector::UpVector);
 	//}
 
-	int subdivisions = 7;
+	int subdivisions = 10;
 	int resolution = 1 << subdivisions;
 	TArray<FVector> Vertices;
 	//Vertices.SetNum((resolution + 1) * (resolution + 1) * 4 - (resolution * 2 - 1) * 3);
@@ -61,12 +61,53 @@ void ATriangleSphere::BeginPlay()
 	TArray<FVector> Normals;
 	CreateOctahedron(Vertices, Triangles, resolution);
 
+	TArray<FVector> Craters;
+
+	for (int i = 0; i < CraterNum; i++)
+	{
+		int CraterIndex = FMath::RandRange(0, Vertices.Num() - 1);
+		Craters.Add(Vertices[CraterIndex].GetSafeNormal());
+	}
+
+
 	for (int i = 0; i < Vertices.Num(); i++)
 	{
-		Vertices[i] = Vertices[i].GetSafeNormal() * 80000;
+		float offset = 0;
+
+		for (FVector Crater : Craters)
+		{
+			float distance = FVector::Distance(Crater * 8000, Vertices[i].GetSafeNormal() * 8000) / 250.0f;
+
+			float MainShape = distance * distance - 1;
+			float CraterFloor = -0.7f;
+			float RimSteepness = 0.6f;
+			float RimHeight = 1.5f;
+			float Cutoff = FMath::Min(distance - 1 - RimHeight, 0);
+			float CraterRim = Cutoff * Cutoff * RimSteepness;
+			
+
+			float val = FMath::Max(FMath::Min(MainShape, CraterRim), CraterFloor);
+			if (offset == 0)
+			{
+				offset = val * 200;
+			}
+			else
+			{
+				offset = FMath::Max(val * 200, offset);
+			}
+			
+
+
+			/*if (FVector::Distance(Crater * 8000, Vertices[i].GetSafeNormal() * 8000) < 1000)
+				offset = -500;*/
+		}
+
+
+		
+		Vertices[i] = Vertices[i].GetSafeNormal() * (8000 + offset);
 		Normals.Add(Vertices[i].GetSafeNormal());
-		//	//Normals.Add(FVector::UpVector);
 	}
+	
 
 	
 	Mesh->SetMaterial(0, Material);
@@ -101,8 +142,8 @@ void ATriangleSphere::CreateOctahedron(TArray<FVector>& vertices, TArray<int>& t
 	{
 		for (int d = 0; d < direction1.Num(); d++)
 		{
-			vertices.Add(direction3[ud]);
-			vBottom = vertices.Num() - 1;
+			//vertices.Add(direction3[ud]);
+			vBottom = vertices.Num();
 			for (int i = 0; i <= resolution; i++)
 			{
 				float progress = (float)i / resolution;
@@ -110,8 +151,14 @@ void ATriangleSphere::CreateOctahedron(TArray<FVector>& vertices, TArray<int>& t
 				from = FMath::Lerp(direction3[ud], direction1[d], progress);
 				vertices.Add(from);
 				to = FMath::Lerp(direction3[ud], direction2[d], progress);
-				CreateLowerStrip(i, vertices.Num(), vBottom, triangles);
-				CreateUpperStrip(i, vertices.Num(), vBottom, triangles);
+				if (direction3[ud] == FVector::DownVector)
+				{
+					CreateLowerStrip(i, vertices.Num(), vBottom, triangles); //builds from the top down
+				}
+				else
+				{
+					CreateUpperStrip(i, vertices.Num(), vBottom, triangles); //builds from the bottom up
+				}
 				CreateVertexLine(from, to, i, vertices);
 				vBottom = vertices.Num() - 1 - i;
 			}
