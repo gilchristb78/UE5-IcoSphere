@@ -39,4 +39,6 @@ private:
 	void CreateVertexLine(FVector from, FVector to, int steps, TArray<FVector>& vertices);
 	void CreateLowerStrip(int steps, int vTop, int vBottom, TArray<int>& triangles);
 	void CreateUpperStrip(int steps, int vTop, int vBottom, TArray<int>& triangles);
+	float SmoothMin(float a, float b, float k);
+	float SmoothMax(float a, float b, float k);
 };
