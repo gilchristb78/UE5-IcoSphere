@@ -17,11 +17,33 @@ public:
 	// Sets default values for this actor's properties
 	ATriangleSphere();
 
-	UPROPERTY(EditInstanceOnly, Category = "Chunk World")
+	UPROPERTY(EditAnywhere, Category = "Planet")
 	TObjectPtr<UMaterialInterface> Material;
 
-	UPROPERTY(EditInstanceOnly, Category = "Chunk World")
-	int CraterNum;
+	UPROPERTY(EditAnywhere, Category = "Planet")
+	int CraterNum = 10;
+
+	UPROPERTY(EditAnywhere, Category = "Planet")
+	float PlanetRadius = 1000.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Planet")
+	int SubDivisions = 2;
+
+	UPROPERTY(EditAnywhere, Category = "Crater")
+	float CraterRadius = 250.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Crater")
+	float CraterFloor = -0.2f;
+
+	UPROPERTY(EditAnywhere, Category = "Crater")
+	float RimSteepness = 0.23f;
+
+	UPROPERTY(EditAnywhere, Category = "Crater")
+	float RimHeight = 0.81f;
+
+	UPROPERTY(EditAnywhere, Category = "Crater")
+	float Smoothfactor = 0.2f;
+
 
 protected:
 	// Called when the game starts or when spawned
@@ -31,7 +53,18 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
 private:
+
+	TArray<FVector> Points;
+	TArray<FVector> Vertices;
+	TArray<int> Triangles;
+	TArray<FVector> Craters;
+	
+
 
 	TObjectPtr<UProceduralMeshComponent> Mesh;
 
@@ -41,4 +74,10 @@ private:
 	void CreateUpperStrip(int steps, int vTop, int vBottom, TArray<int>& triangles);
 	float SmoothMin(float a, float b, float k);
 	float SmoothMax(float a, float b, float k);
+
+	void CreatePlanet();
+	void setPoints();
+
+	float GetCraterVal(float Distance);
+	
 };
