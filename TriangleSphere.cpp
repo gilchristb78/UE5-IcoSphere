@@ -13,7 +13,6 @@ ATriangleSphere::ATriangleSphere()
 	Mesh = CreateDefaultSubobject<UProceduralMeshComponent>("Mesh");
 	Mesh->SetCastShadow(false);
 	RootComponent = Mesh;
-
 }
 
 // Called when the game starts or when spawned
@@ -21,112 +20,7 @@ void ATriangleSphere::BeginPlay()
 {
 	Super::BeginPlay();
 
-	//TArray<FVector> Vertices = {
-	//	FVector::DownVector,
-	//	FVector::ForwardVector,
-	//	FVector::LeftVector,
-	//	FVector::BackwardVector,
-	//	FVector::RightVector,
-	//	FVector::UpVector
-	//};
-	//
-	//TArray<int> Triangles = {
-	//	2, 1, 0,
-	//	3, 2, 0,
-	//	4, 3, 0,
-	//	1, 4, 0,
-	//	
-
-	//	1, 2, 5,
-	//	2, 3, 5,
-	//	3, 4, 5,
-	//	4, 1, 5
-	//};
-
-	//TArray<FVector> Normals = TArray<FVector>();
-
-	//for (int i = 0; i < Vertices.Num(); i++)
-	//{
-	//	Vertices[i] *= 800;
-	//	Normals.Add(Vertices[i].GetSafeNormal());
-	//	//Normals.Add(FVector::UpVector);
-	//}
-
-	int subdivisions = 8;
-	int resolution = 1 << subdivisions;
-	TArray<FVector> Vertices;
-	//Vertices.SetNum((resolution + 1) * (resolution + 1) * 4 - (resolution * 2 - 1) * 3);
-	TArray<int> Triangles;
-	//Triangles.SetNum((1 << (subdivisions * 2 + 3)) * 3);
-	TArray<FVector> Normals;
-	CreateOctahedron(Vertices, Triangles, resolution);
-
-	TArray<FVector> Points;
-
-	for (FVector vertice : Vertices)
-	{
-		Points.Add(vertice.GetSafeNormal() * 8000);
-	}
-
-	TArray<FVector> Craters;
-
-	for (int i = 0; i < CraterNum; i++)
-	{
-		int CraterIndex = FMath::RandRange(0, Points.Num() - 1);
-		Craters.Add(Points[CraterIndex]);
-	}
-
-
-	for (int i = 0; i < Vertices.Num(); i++)
-	{
-		float offset = 0;
-
-		for (FVector Crater : Craters)
-		{
-			float distance = FVector::Distance(Crater, Points[i]) / 1000.0f; //radius
-
-			float MainShape = distance * distance - 1;
-			float CraterFloor = -0.7f; //percentage of crater before floor out of 1
-			float RimSteepness = 0.33f; //how steep is transition from top of rim to outside
-			float RimHeight = 1.61f; //how farm away should the outside of rim be drawn from (+ steep = how high)
-			float smoothfactor = 0.4f;// how rounded are corners
-			float Cutoff = SmoothMin(distance - 1 - RimHeight, 0, smoothfactor);
-			float CraterRim = Cutoff * Cutoff * RimSteepness;
-			
-
-			float val = SmoothMax(SmoothMin(MainShape, CraterRim, smoothfactor), CraterFloor, smoothfactor);
-
-			if (std::fabs(val) > 1e-6)
-			{
-				if (std::fabs(offset) < 1e-6)
-				{
-					offset = val * 1000.0f; //radius
-				}
-				else
-				{
-					offset += val * 1000.0f; //radius
-				}
-			}
-
-			//offset += val * 100;
-			
-
-
-			/*if (FVector::Distance(Crater * 8000, Vertices[i].GetSafeNormal() * 8000) < 1000)
-				offset = -500;*/
-		}
-
-
-		
-		Points[i] += Vertices[i].GetSafeNormal() * offset;
-		Normals.Add(Points[i].GetSafeNormal());
-	}
-	
-
-	
-	Mesh->SetMaterial(0, Material);
-	Mesh->CreateMeshSection(0, Points, Triangles, Normals , TArray<FVector2D>(), TArray<FColor>(), TArray<FProcMeshTangent>(), true);
-
+	CreatePlanet();
 	
 }
 
@@ -140,13 +34,6 @@ void ATriangleSphere::Tick(float DeltaTime)
 void ATriangleSphere::CreateOctahedron(TArray<FVector>& vertices, TArray<int>& triangles, int resolution)
 {
 	int vBottom = 0;
-
-	/*for (int i = 0; i < 4; i++)
-	{
-		vertices.Add(FVector::DownVector);
-	}*/
-
-	//vertices.Add(FVector::DownVector);
 
 	TArray<FVector> direction1 = { FVector::ForwardVector, FVector::LeftVector, FVector::BackwardVector, FVector::RightVector };
 	TArray<FVector> direction2 = { FVector::LeftVector, FVector::BackwardVector, FVector::RightVector, FVector::ForwardVector };
@@ -240,4 +127,87 @@ float ATriangleSphere::SmoothMax(float a, float b, float k)
 {
 	return SmoothMin(a, b, -k);
 }
+
+void ATriangleSphere::CreatePlanet()
+{
+	
+	setPoints();
+
+	Craters = TArray<FVector>();
+
+	for (int i = 0; i < CraterNum; i++)
+	{
+		int CraterIndex = FMath::RandRange(0, Vertices.Num() - 1);
+		Craters.Add(Vertices[CraterIndex]);
+	}
+
+	for (int i = 0; i < Vertices.Num(); i++)
+	{
+		float offset = 0;
+
+		for (FVector Crater : Craters)
+		{
+			float distance = FVector::Distance(Crater, Vertices[i]) / CraterRadius; //radius
+			float val = GetCraterVal(distance);
+
+			if (std::fabs(val) > 0.001f)
+			{
+				offset += val * CraterRadius;
+			}
+		}
+		Vertices[i] += Points[i].GetSafeNormal() * offset;
+	}
+
+	Mesh->SetMaterial(0, Material);
+	Mesh->CreateMeshSection(0, Vertices, Triangles, TArray<FVector>(), TArray<FVector2D>(), TArray<FColor>(), TArray<FProcMeshTangent>(), true);
+}
+
+void ATriangleSphere::setPoints()
+{
+	int resolution = 1 << SubDivisions;
+
+	Points = TArray<FVector>();
+	Triangles = TArray<int>();
+	CreateOctahedron(Points, Triangles, resolution);
+
+	Vertices = TArray<FVector>();
+	for (FVector point : Points)
+	{
+		Vertices.Add(point.GetSafeNormal() * PlanetRadius);
+	}
+}
+
+float ATriangleSphere::GetCraterVal(float Distance)
+{
+
+	//float CraterFloor = -0.2f; //percentage of crater before floor out of 1
+	//float RimSteepness = 0.23f; //how steep is transition from top of rim to outside
+	//float RimHeight = 0.81f; //how farm away should the outside of rim be drawn from (+ steep = how high)
+	//float smoothfactor = 0.2f;// how rounded are corners
+
+	float MainShape = Distance * Distance - 1;
+	float Cutoff = SmoothMin(Distance - 1 - RimHeight, 0, Smoothfactor);
+	float CraterRim = Cutoff * Cutoff * RimSteepness;
+
+	return FMath::Max(SmoothMin(MainShape, CraterRim, Smoothfactor), CraterFloor);
+}
+
+#if WITH_EDITOR
+void ATriangleSphere::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ATriangleSphere, SubDivisions) ||
+		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ATriangleSphere, CraterNum) ||
+		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ATriangleSphere, PlanetRadius) ||
+		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ATriangleSphere, CraterRadius) ||
+		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ATriangleSphere, CraterFloor) ||
+		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ATriangleSphere, RimSteepness) ||
+		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ATriangleSphere, RimHeight) ||
+		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ATriangleSphere, Smoothfactor))
+	{
+		CreatePlanet(); // Call CreatePlanet() whenever SubDivisions changes
+	}
+}
+#endif
 
